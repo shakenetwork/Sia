@@ -1,32 +1,39 @@
 Standard Transaction Rules
 ==========================
 
-Some transactions will not be accepted by miners unless they appear in a block.
-This is equivalent to the 'IsStandard' function in Bitcoin. This file dictates
-the rules for standard Sia transactions.
+The Sia protocol defines a soft set of rules for transactions. These rules are
+expected to be enforced by most miners however are ultimately optional. Some
+miners may choose to ignore the rules or add additional rules, which means some
+blocks may have transactions that don't follow the IsStandard rules.
 
 Transaction Size
 ----------------
 
 Consensus rules limit the size of a block, but not the size of a transaction.
-Standard rules however limit the size of a single transaction to 16kb.
+Standard rules however limit the size of a single transaction to 32kb.
 
-A chain of dependent transactions cannot exceed 500kb.
+A chain of dependent transactions cannot exceed 250kb.
 
 Double Spend Rules
 ------------------
 
-When two conflicting transactions are seen, the first transaction is the only
-one that is kept. If the blockchain reorganizes, the transaction that is kept
-is the transaction that was most recently in the blockchain. This is to
-discourage double spending, and enforce that the first transaction seen is the
-one that should be kept by the network. Other conflicts are thrown out.
+Current Behavior:
+	When two conflicting transactions are seen, the first transaction is the only
+	one that is kept. If the blockchain reorganizes, the transaction that is kept
+	is the transaction that was most recently in the blockchain. This is to
+	discourage double spending, and enforce that the first transaction seen is the
+	one that should be kept by the network. Other conflicts are thrown out.
 
-Transactions are currently included into blocks using a first-come first-serve
-algorithm. Eventually, transactions will be rejected if the fee does not meet a
-certain minimum. For the near future, there are no plans to prioritize
-transactions with substantially higher fees. Other mining software may take
-alternative approaches.
+	Transactions are currently included into blocks using a first-come first-serve
+	algorithm. Eventually, transactions will be rejected if the fee does not meet a
+	certain minimum. For the near future, there are no plans to prioritize
+	transactions with substantially higher fees. Other mining software may take
+	alternative approaches.
+
+Upcoming Behavior:
+	Double spends are allowed, the transaction with the highest miner fee per byte
+	shall be the one that remainins in the transaction pool. Child-pays-for-parent
+	and replace-by-fee will be in full effect.
 
 File Contract Rules
 -------------------
@@ -35,8 +42,7 @@ File Contracts that start in less than 10 blocks time are not accepted into the
 transaction pool. This is because a file contract becomes invalid if it is not
 accepted into the blockchain by the start block, and this might result in a
 cascade of invalidated unconfirmed transactions, which may make it easier to
-launch double spend attacks on zero confirmation outputs. 10 blocks is plenty
-of time on the other hand for a file contract to make it into the blockchain.
+launch double spend attacks on zero confirmation outputs.
 
 Signature Algorithms
 --------------------
@@ -59,3 +65,7 @@ never will.
 Arbitrary data that is prefixed by the string 'HostAnnouncement' is allowed,
 but only if the data within accurately decodes to the HostAnnouncement struct
 found in modules/hostdb.go, and contains no extra information.
+
+Upcoming:
+	Arbitrary data prefixed by the string 'HostAnnouncementv2' is allowed.
+

@@ -33,3 +33,16 @@ parent module has not yet received (desynchronization).
 #### Module Update Flow
 
 consensus -> (host, hostdb, renter, (transaction pool -> miner, wallet))
+
+#### Consistency and Durability of Module Information
+
+The consensus set will not set information to modules until it has provided
+ACID guarantees on the updates that it is distributing - meaning a module can
+expect that after restart the consensus set will be able to propagate the exact
+same update.
+
+Modules will not start up until the've restored all updates, including fetching
+any missing updates from the consensus set. This means that at all points in
+time, a module can assume that its dependencies have seen every single block
+that it has seen, even if modules individually don't provide ACID guarantees on
+their updates.
