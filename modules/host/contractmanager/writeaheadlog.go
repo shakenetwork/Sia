@@ -132,6 +132,29 @@ func writeWALMetadata(f file) error {
 	return nil
 }
 
+// writeSettingsData will write settings data + header to a file, but will not
+// sync or save.
+func writeSettingsData(ss savedSettings, w io.Writer) error {
+	b, err := json.MarshalIndent(ss, "", "\t")
+	if err != nil {
+		return build.ExtendErr("unable to marshal settings", err)
+	}
+	enc := json.NewEncoder(w)
+	err = enc.Encode(settingsMetadata.Header)
+	if err != nil {
+		return build.ExtendErr("unable to encode settings header", err)
+	}
+	err = enc.Encode(settingsMetadata.Version)
+	if err != nil {
+		return build.ExtendErr("unable to encode settings version", err)
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		return build.ExtendErr("unable to encode settings data", err)
+	}
+	return nil
+}
+
 // appendChange will add a change to the WAL, writing the details of the change
 // to the WAL file but not syncing - syncing is orchestrated by the sync loop.
 //
@@ -318,7 +341,7 @@ func (wal *writeAheadLog) load() error {
 		}
 	})
 	ss := wal.cm.savedSettings()
-	err = persist.Save(settingsMetadata, ss, wal.fileSettingsTmp)
+	err = writeSettingsData(ss, wal.fileSettingsTmp)
 	if err != nil {
 		build.ExtendErr("unable to write to settings temp file", err)
 	}

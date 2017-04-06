@@ -4,8 +4,6 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	"github.com/NebulousLabs/Sia/persist"
 )
 
 // syncResources will call Sync on all resources that the WAL has open. The
@@ -167,7 +165,7 @@ func (wal *writeAheadLog) commit() {
 			panic("unable to open temporary settings file for writing, crashing to prevent data corruption")
 		}
 		ss := wal.cm.savedSettings()
-		err = persist.Save(settingsMetadata, ss, wal.fileSettingsTmp)
+		err = writeSettingsData(ss, wal.fileSettingsTmp)
 		if err != nil {
 			wal.cm.log.Severe("writing to settings tmp file has failed:", err)
 			panic("unable to write to temporary settings file, crashing to avoid data corruption")
