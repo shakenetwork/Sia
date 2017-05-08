@@ -159,6 +159,32 @@ func TestGatewayOutboundPreference(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Block until all of the gateways have at least 4 outbound peers.
+	err = retry(100, time.Millisecond*250, func() error {
+		for _, g := range outboundFriends {
+			// Check that there are 4 outbound peers for each peer.
+			var gg GatewayGET
+			err := g.getAPI("/gateway", &gg)
+			if err != nil {
+				return err
+			}
+			numOutbound := 0
+			for _, peer := range gg.Peers {
+				if peer.Inbound {
+					continue
+				}
+				numOutbound++
+			}
+			if numOutbound < 4 {
+				return errors.New("expecting to have 4 outbound peers")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Close one peer at a time, then wait until everyone has added the missing
 	// peer as outbound. This means that all peers will be 'HasBeenOutbound' for
 	// eachother in the outbound friends group, if everything is working
@@ -240,6 +266,49 @@ func TestGatewayOutboundPreference(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Block until g7 and g8 have 4 outbound peers.
+	err = retry(100, time.Millisecond*250, func() error {
+		// Get the peers.
+		var gg GatewayGET
+
+		err := g7.getAPI("/gateway", &gg)
+		if err != nil {
+			return err
+		}
+		// Count the number of outbound peers.
+		numOutbound := 0
+		for _, peer := range gg.Peers {
+			if peer.Inbound {
+				continue
+			}
+			numOutbound++
+		}
+		if numOutbound < 4 {
+			return errors.New("expecting to have 4 outbound peers")
+		}
+
+		err = g8.getAPI("/gateway", &gg)
+		if err != nil {
+			return err
+		}
+		// Count the number of outbound peers. None should be g7addr or
+		// g8addr, and there should be 4 total.
+		numOutbound = 0
+		for _, peer := range gg.Peers {
+			if peer.Inbound {
+				continue
+			}
+			numOutbound++
+		}
+		if numOutbound < 4 {
+			return errors.New("expecting to have 4 outbound peers")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Grab the address of g7 and g8, so we can make sure we don't use them as
 	// outbound peers in the new nodes.
 	var g7addr, g8addr modules.NetAddress
@@ -254,8 +323,6 @@ func TestGatewayOutboundPreference(t *testing.T) {
 		t.Fatal(err)
 	}
 	g8addr = gg.NetAddress
-	println(g7addr)
-	println(g8addr)
 
 	// Close and re-open all of the outbound friends, one at a time. Upon
 	// restart, they should only be connected to eachother, and not to the
