@@ -95,6 +95,9 @@ func LoadJSON(meta Metadata, object interface{}, filename string) error {
 
 		_, exists := activeFiles[filename]
 		if exists {
+			if build.DEBUG {
+				panic(ErrFileInUse)
+			}
 			return ErrFileInUse
 		}
 		activeFiles[filename] = struct{}{}
@@ -145,6 +148,9 @@ func SaveJSON(meta Metadata, object interface{}, filename string) error {
 
 		_, exists := activeFiles[filename]
 		if exists {
+			if build.DEBUG {
+				panic(ErrFileInUse)
+			}
 			return ErrFileInUse
 		}
 		activeFiles[filename] = struct{}{}
