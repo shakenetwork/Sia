@@ -358,6 +358,86 @@ func assembleExplorerServerTester(testdir string) (*serverTester, error) {
 	return st, nil
 }
 
+// assembleGatewayServerTester creates a bunch of modules and assembles them
+// into a server tester, without creating any directories or mining any blocks.
+// This one uses a fixed value for the gateway port.
+func assembleGatewayServerTester(key crypto.TwofishKey, testdir string, gatewayAddr modules.NetAddress) (*serverTester, error) {
+	// assembleServerTester should not get called during short tests, as it
+	// takes a long time to run.
+	if testing.Short() {
+		panic("assembleServerTester called during short tests")
+	}
+
+	// Create the modules.
+	g, err := gateway.New(string(gatewayAddr), false, filepath.Join(testdir, modules.GatewayDir))
+	if err != nil {
+		return nil, err
+	}
+	cs, err := consensus.New(g, false, filepath.Join(testdir, modules.ConsensusDir))
+	if err != nil {
+		return nil, err
+	}
+	tp, err := transactionpool.New(cs, g, filepath.Join(testdir, modules.TransactionPoolDir))
+	if err != nil {
+		return nil, err
+	}
+	w, err := wallet.New(cs, tp, filepath.Join(testdir, modules.WalletDir))
+	if err != nil {
+		return nil, err
+	}
+	if !w.Encrypted() {
+		_, err = w.Encrypt(key)
+		if err != nil {
+			return nil, err
+		}
+	}
+	err = w.Unlock(key)
+	if err != nil {
+		return nil, err
+	}
+	m, err := miner.New(cs, tp, w, filepath.Join(testdir, modules.MinerDir))
+	if err != nil {
+		return nil, err
+	}
+	h, err := host.New(cs, tp, w, "localhost:0", filepath.Join(testdir, modules.HostDir))
+	if err != nil {
+		return nil, err
+	}
+	r, err := renter.New(g, cs, w, tp, filepath.Join(testdir, modules.RenterDir))
+	if err != nil {
+		return nil, err
+	}
+	srv, err := NewServer("localhost:0", "Sia-Agent", "", cs, nil, g, h, m, r, tp, w)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assemble the serverTester.
+	st := &serverTester{
+		cs:        cs,
+		gateway:   g,
+		host:      h,
+		miner:     m,
+		renter:    r,
+		tpool:     tp,
+		wallet:    w,
+		walletKey: key,
+
+		server: srv,
+
+		dir: testdir,
+	}
+
+	// TODO: A more reasonable way of listening for server errors.
+	go func() {
+		listenErr := srv.Serve()
+		if listenErr != nil {
+			panic(listenErr)
+		}
+	}()
+	return st, nil
+}
+
 // blankServerTester creates a server tester object that is ready for testing,
 // without mining any blocks.
 func blankServerTester(name string) (*serverTester, error) {
