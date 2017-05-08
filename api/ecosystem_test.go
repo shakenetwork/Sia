@@ -8,8 +8,6 @@ package api
 // exclusively through the API.
 
 import (
-	"errors"
-	"net/url"
 	"testing"
 	"time"
 
