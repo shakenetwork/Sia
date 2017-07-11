@@ -39,7 +39,7 @@ var (
 	//
 	// NOTE: This needs to be intelligently adjusted down as the practical price
 	// of storage changes, and as the price of the siacoin changes.
-	minTotalPrice = types.SiacoinPrecision.Mul64(25).Div64(tbMonth)
+	minTotalPrice = types.SiacoinPrecision.Mul64(20).Div64(tbMonth)
 
 	// priceExponentiation is the number of times that the weight is divided by
 	// the price.
