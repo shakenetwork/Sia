@@ -68,7 +68,7 @@ func verifySettings(conn net.Conn, host modules.HostDBEntry) (modules.HostDBEntr
 
 // verifyRecentRevision confirms that the host and contractor agree upon the current
 // state of the contract being revised.
-func verifyRecentRevision(conn net.Conn, contract modules.RenterContract, hostVersion string) error {
+func verifyRecentRevision(conn net.Conn, contract *modules.RenterContract, hostVersion string) error {
 	// send contract ID
 	if err := encoding.WriteObject(conn, contract.ID); err != nil {
 		return errors.New("couldn't send contract ID: " + err.Error())
@@ -103,6 +103,9 @@ func verifyRecentRevision(conn net.Conn, contract modules.RenterContract, hostVe
 	// seriously wrong. Otherwise, check that the revision numbers match.
 	if lastRevision.UnlockConditions.UnlockHash() != contract.LastRevision.UnlockConditions.UnlockHash() {
 		return errors.New("unlock conditions do not match")
+	} else if lastRevision.NewRevisionNumber > contract.LastRevision.NewRevisionNumber {
+		println("updated revision number:", contract.LastRevision.NewRevisionNumber, "->", lastRevision.NewRevisionNumber)
+		contract.LastRevision = lastRevision
 	} else if lastRevision.NewRevisionNumber != contract.LastRevision.NewRevisionNumber {
 		return &recentRevisionError{contract.LastRevision.NewRevisionNumber, lastRevision.NewRevisionNumber}
 	}
