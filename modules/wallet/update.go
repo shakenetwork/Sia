@@ -302,7 +302,6 @@ func (w *Wallet) applyHistory(tx *bolt.Tx, cc modules.ConsensusChange) error {
 				if pi.WalletAddress {
 					w.log.Println("\tSiacoin Input:", pi.ParentID, "::", pi.Value.HumanString())
 				}
-
 			}
 
 			for i, sco := range txn.SiacoinOutputs {
@@ -378,6 +377,10 @@ func (w *Wallet) applyHistory(tx *bolt.Tx, cc modules.ConsensusChange) error {
 					FundType: types.SpecifierMinerFee,
 					Value:    fee,
 				})
+			}
+
+			for _, output := range pt.Outputs {
+				output.Context = dbGetOutputContext(w.dbTx, output.ID)
 			}
 
 			err := dbAppendProcessedTransaction(tx, pt)

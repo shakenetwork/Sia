@@ -251,7 +251,7 @@ func (m *Miner) checkAddress() error {
 	if m.persist.Address != (types.UnlockHash{}) {
 		return nil
 	}
-	uc, err := m.wallet.NextAddress()
+	uc, err := m.wallet.NextAddress(modules.DefaultWalletContext)
 	if err != nil {
 		return err
 	}

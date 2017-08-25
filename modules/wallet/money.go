@@ -15,15 +15,15 @@ type sortedOutputs struct {
 
 // ConfirmedBalance returns the balance of the wallet according to all of the
 // confirmed transactions.
-func (w *Wallet) ConfirmedBalance() (siacoinBalance types.Currency, siafundBalance types.Currency, siafundClaimBalance types.Currency) {
+func (w *Wallet) ConfirmedBalance(context string) (siacoinBalance types.Currency, siafundBalance types.Currency, siafundClaimBalance types.Currency) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	// ensure durability of reported balance
 	w.syncDB()
 
-	dbForEachSiacoinOutput(w.dbTx, func(_ types.SiacoinOutputID, sco types.SiacoinOutput) {
-		if sco.Value.Cmp(dustValue()) > 0 {
+	dbForEachSiacoinOutput(w.dbTx, func(id types.SiacoinOutputID, sco types.SiacoinOutput) {
+		if sco.Value.Cmp(dustValue()) > 0 && dbGetOutputContext(w.dbTx, types.OutputID(id)) == context {
 			siacoinBalance = siacoinBalance.Add(sco.Value)
 		}
 	})
@@ -69,7 +69,7 @@ func (w *Wallet) UnconfirmedBalance() (outgoingSiacoins types.Currency, incoming
 
 // SendSiacoins creates a transaction sending 'amount' to 'dest'. The transaction
 // is submitted to the transaction pool and is also returned.
-func (w *Wallet) SendSiacoins(amount types.Currency, dest types.UnlockHash) ([]types.Transaction, error) {
+func (w *Wallet) SendSiacoins(amount types.Currency, dest types.UnlockHash, context string) ([]types.Transaction, error) {
 	if err := w.tg.Add(); err != nil {
 		return nil, err
 	}
@@ -81,12 +81,14 @@ func (w *Wallet) SendSiacoins(amount types.Currency, dest types.UnlockHash) ([]t
 
 	_, tpoolFee := w.tpool.FeeEstimation()
 	tpoolFee = tpoolFee.Mul64(750) // Estimated transaction size in bytes
+	destContext := dbGetAddressContext(w.dbTx, dest)
 	output := types.SiacoinOutput{
 		Value:      amount,
 		UnlockHash: dest,
 	}
 
 	txnBuilder := w.StartTransaction()
+	txnBuilder.SetContext(context, destContext)
 	err := txnBuilder.FundSiacoins(amount.Add(tpoolFee))
 	if err != nil {
 		w.log.Println("Attempt to send coins has failed - failed to fund transaction:", err)
