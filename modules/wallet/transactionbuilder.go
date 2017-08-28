@@ -175,9 +175,6 @@ func (tb *transactionBuilder) FundSiacoins(amount types.Currency) error {
 			}
 			continue
 		}
-		if ctx := dbGetOutputContext(tb.wallet.dbTx, types.OutputID(scoid)); ctx != tb.srcContext {
-			continue
-		}
 
 		// Add a siacoin input for this output.
 		sci := types.SiacoinInput{
@@ -550,9 +547,6 @@ func (tb *transactionBuilder) Sign(wholeTransaction bool) ([]types.Transaction, 
 	// and must be covered manually.
 	for i := range tb.transaction.TransactionSignatures {
 		coveredFields.TransactionSignatures = append(coveredFields.TransactionSignatures, uint64(i))
-	}
-	for i := range tb.transaction.SiacoinOutputs {
-		dbPutOutputContext(tb.wallet.dbTx, types.OutputID(tb.transaction.SiacoinOutputID(uint64(i))), tb.destContext)
 	}
 
 	// For each siacoin input in the transaction that we added, provide a

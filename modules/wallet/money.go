@@ -1,6 +1,8 @@
 package wallet
 
 import (
+	"errors"
+
 	"github.com/NebulousLabs/Sia/build"
 	"github.com/NebulousLabs/Sia/modules"
 	"github.com/NebulousLabs/Sia/types"
@@ -13,6 +15,12 @@ type sortedOutputs struct {
 	outputs []types.SiacoinOutput
 }
 
+func (w *Wallet) SetContextLimit(context string, limit types.Currency) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	dbPutContextBalance(w.dbTx, context, limit)
+}
+
 // ConfirmedBalance returns the balance of the wallet according to all of the
 // confirmed transactions.
 func (w *Wallet) ConfirmedBalance(context string) (siacoinBalance types.Currency, siafundBalance types.Currency, siafundClaimBalance types.Currency) {
@@ -23,10 +31,17 @@ func (w *Wallet) ConfirmedBalance(context string) (siacoinBalance types.Currency
 	w.syncDB()
 
 	dbForEachSiacoinOutput(w.dbTx, func(id types.SiacoinOutputID, sco types.SiacoinOutput) {
-		if sco.Value.Cmp(dustValue()) > 0 && dbGetOutputContext(w.dbTx, types.OutputID(id)) == context {
+		if sco.Value.Cmp(dustValue()) > 0 {
 			siacoinBalance = siacoinBalance.Add(sco.Value)
 		}
 	})
+
+	contextBalance, err := dbGetContextBalance(w.dbTx, context)
+	if err != nil {
+		w.log.Debugf("couldnt get context balance: %v\n", err)
+	} else if contextBalance.Cmp(siacoinBalance) < 0 {
+		siacoinBalance = contextBalance
+	}
 
 	siafundPool, err := dbGetSiafundPool(w.dbTx)
 	if err != nil {
@@ -79,17 +94,25 @@ func (w *Wallet) SendSiacoins(amount types.Currency, dest types.UnlockHash, cont
 		return nil, modules.ErrLockedWallet
 	}
 
+	// check that this context has enough funds
+	ctxBalance, err := dbGetContextBalance(w.dbTx, context)
+	if err != nil {
+		return []types.Transaction{}, err
+	}
+	if ctxBalance.Cmp(amount) < 0 {
+		return []types.Transaction{}, errors.New("supplied context has insufficient balance")
+	}
+	dbPutContextBalance(w.dbTx, context, ctxBalance.Sub(amount))
+
 	_, tpoolFee := w.tpool.FeeEstimation()
 	tpoolFee = tpoolFee.Mul64(750) // Estimated transaction size in bytes
-	destContext := dbGetAddressContext(w.dbTx, dest)
 	output := types.SiacoinOutput{
 		Value:      amount,
 		UnlockHash: dest,
 	}
 
 	txnBuilder := w.StartTransaction()
-	txnBuilder.SetContext(context, destContext)
-	err := txnBuilder.FundSiacoins(amount.Add(tpoolFee))
+	err = txnBuilder.FundSiacoins(amount.Add(tpoolFee))
 	if err != nil {
 		w.log.Println("Attempt to send coins has failed - failed to fund transaction:", err)
 		return nil, build.ExtendErr("unable to fund transaction", err)
