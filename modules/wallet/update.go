@@ -379,7 +379,13 @@ func (w *Wallet) applyHistory(tx *bolt.Tx, cc modules.ConsensusChange) error {
 				})
 			}
 
-			err := dbAppendProcessedTransaction(tx, pt)
+			ctx, err := dbGetTransactionContext(tx, pt.TransactionID)
+			if err != nil {
+				return err
+			}
+			pt.Context = ctx
+
+			err = dbAppendProcessedTransaction(tx, pt)
 			if err != nil {
 				return fmt.Errorf("could not put processed transaction: %v", err)
 			}
