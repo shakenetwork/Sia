@@ -28,7 +28,7 @@ func (w *Wallet) ConfirmedBalance(context string) (siacoinBalance types.Currency
 	// ensure durability of reported balance
 	w.syncDB()
 
-	dbForEachSiacoinOutput(w.dbTx, func(id types.SiacoinOutputID, sco types.SiacoinOutput) {
+	dbForEachSiacoinOutput(w.dbTx, func(_ types.SiacoinOutputID, sco types.SiacoinOutput) {
 		if sco.Value.Cmp(dustValue()) > 0 {
 			siacoinBalance = siacoinBalance.Add(sco.Value)
 		}
