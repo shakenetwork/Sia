@@ -84,7 +84,7 @@ func (w *Wallet) UnconfirmedBalance() (outgoingSiacoins types.Currency, incoming
 
 // SendSiacoins creates a transaction sending 'amount' to 'dest'. The transaction
 // is submitted to the transaction pool and is also returned.
-func (w *Wallet) SendSiacoins(amount types.Currency, dest types.UnlockHash, context string) ([]types.Transaction, error) {
+func (w *Wallet) SendSiacoins(amount types.Currency, dest types.UnlockHash) ([]types.Transaction, error) {
 	if err := w.tg.Add(); err != nil {
 		return nil, err
 	}
@@ -102,7 +102,6 @@ func (w *Wallet) SendSiacoins(amount types.Currency, dest types.UnlockHash, cont
 	}
 
 	txnBuilder := w.StartTransaction()
-	txnBuilder.SetContext(context)
 	err := txnBuilder.FundSiacoins(amount.Add(tpoolFee))
 	if err != nil {
 		w.log.Println("Attempt to send coins has failed - failed to fund transaction:", err)
